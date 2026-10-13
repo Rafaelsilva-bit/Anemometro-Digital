@@ -17,18 +17,20 @@
 #define PINO_BUZZER 12
 
 #define VELOCIDADE_LIMITE 40.0
-
-// Atualizacao da velocidade a cada 1000 ms
 #define INTERVALO_MEDICAO 1000UL
 
 // =====================================================
-// FILTRO EMA - UTILIZADO SOMENTE NO ALERTA
+// FILTROS
 // =====================================================
 
+// EMA aplicado somente ao alerta
 #define ALPHA 0.20
 
+// Estabilizacao da exibicao
+#define ZONA_ESTABILIDADE 0.5
+
 // =====================================================
-// DISPLAY OLED
+// OLED
 // =====================================================
 
 Adafruit_SSD1306 display(
@@ -39,7 +41,7 @@ Adafruit_SSD1306 display(
 );
 
 // =====================================================
-// RTC DS3232 / DS3231 COMPATIVEL
+// RTC
 // =====================================================
 
 DS3232RTC rtc;
@@ -55,17 +57,20 @@ time_t getRTC() {
 volatile unsigned long contadorPulsos = 0;
 
 // =====================================================
-// CONTROLE DO TEMPO COM MILLIS()
+// TEMPO
 // =====================================================
 
 unsigned long ultimaMedicao = 0;
 
 // =====================================================
-// VARIAVEIS DO FILTRO EMA
+// VARIAVEIS DOS FILTROS
 // =====================================================
 
 float velocidadeEMA = 0.0;
-bool primeiraLeitura = true;
+float velocidadeExibida = 0.0;
+
+bool primeiraLeituraEMA = true;
+bool primeiraLeituraDisplay = true;
 
 // =====================================================
 // INTERRUPCAO DO ANEMOMETRO
@@ -92,85 +97,61 @@ float converterVelocidade(unsigned long pulsos) {
 
   if (pulsos <= 9) {
     return 5.0 +
-           (pulsos - 5.5) *
-           (10.0 - 5.0) /
-           (9.5 - 5.5);
+           (pulsos - 5.5) * 5.0 / 4.0;
   }
 
   if (pulsos <= 13) {
     return 10.0 +
-           (pulsos - 9.5) *
-           (15.0 - 10.0) /
-           (13.5 - 9.5);
+           (pulsos - 9.5) * 5.0 / 4.0;
   }
 
   if (pulsos <= 17) {
     return 15.0 +
-           (pulsos - 13.5) *
-           (20.0 - 15.0) /
-           (17.5 - 13.5);
+           (pulsos - 13.5) * 5.0 / 4.0;
   }
 
   if (pulsos <= 21) {
     return 20.0 +
-           (pulsos - 17.5) *
-           (25.0 - 20.0) /
-           (21.5 - 17.5);
+           (pulsos - 17.5) * 5.0 / 4.0;
   }
 
   if (pulsos <= 25) {
     return 25.0 +
-           (pulsos - 21.5) *
-           (30.0 - 25.0) /
-           (25.5 - 21.5);
+           (pulsos - 21.5) * 5.0 / 4.0;
   }
 
   if (pulsos <= 30) {
     return 30.0 +
-           (pulsos - 25.5) *
-           (35.0 - 30.0) /
-           (30.5 - 25.5);
+           (pulsos - 25.5) * 5.0 / 5.0;
   }
 
   if (pulsos <= 34) {
     return 35.0 +
-           (pulsos - 30.5) *
-           (40.0 - 35.0) /
-           (34.5 - 30.5);
+           (pulsos - 30.5) * 5.0 / 4.0;
   }
 
   if (pulsos <= 38) {
     return 40.0 +
-           (pulsos - 34.5) *
-           (45.0 - 40.0) /
-           (38.5 - 34.5);
+           (pulsos - 34.5) * 5.0 / 4.0;
   }
 
   if (pulsos <= 42) {
     return 45.0 +
-           (pulsos - 38.5) *
-           (50.0 - 45.0) /
-           (42.5 - 38.5);
+           (pulsos - 38.5) * 5.0 / 4.0;
   }
 
   if (pulsos <= 46) {
     return 50.0 +
-           (pulsos - 42.5) *
-           (55.0 - 50.0) /
-           (46.5 - 42.5);
+           (pulsos - 42.5) * 5.0 / 4.0;
   }
 
   if (pulsos <= 50) {
     return 55.0 +
-           (pulsos - 46.5) *
-           (60.0 - 55.0) /
-           (50.5 - 46.5);
+           (pulsos - 46.5) * 5.0 / 4.0;
   }
 
   return 60.0 +
-         (pulsos - 50.5) *
-         (60.0 - 55.0) /
-         (50.5 - 46.5);
+         (pulsos - 50.5) * 5.0 / 4.0;
 }
 
 // =====================================================
@@ -179,22 +160,46 @@ float converterVelocidade(unsigned long pulsos) {
 
 float aplicarEMA(float leituraAtual) {
 
-  if (primeiraLeitura) {
+  if (primeiraLeituraEMA) {
     velocidadeEMA = leituraAtual;
-    primeiraLeitura = false;
+    primeiraLeituraEMA = false;
 
     return velocidadeEMA;
   }
 
   velocidadeEMA =
-    (ALPHA * leituraAtual) +
-    ((1.0 - ALPHA) * velocidadeEMA);
+    ALPHA * leituraAtual +
+    (1.0 - ALPHA) * velocidadeEMA;
 
   return velocidadeEMA;
 }
 
 // =====================================================
-// CONTROLE DO LED E DO BUZZER
+// ESTABILIZACAO DO VALOR NO OLED
+// =====================================================
+
+float estabilizarDisplay(float velocidadeAtual) {
+
+  if (primeiraLeituraDisplay) {
+    velocidadeExibida = velocidadeAtual;
+    primeiraLeituraDisplay = false;
+
+    return velocidadeExibida;
+  }
+
+  // Mantem o valor anterior se a diferenca for pequena
+  if (abs(velocidadeAtual - velocidadeExibida)
+      <= ZONA_ESTABILIDADE) {
+    return velocidadeExibida;
+  }
+
+  velocidadeExibida = velocidadeAtual;
+
+  return velocidadeExibida;
+}
+
+// =====================================================
+// CONTROLE DO LED E BUZZER
 // =====================================================
 
 void controlarAlerta(float velocidade) {
@@ -217,12 +222,10 @@ void atualizarOLED(float velocidade) {
   display.clearDisplay();
   display.setTextColor(SSD1306_WHITE);
 
-  // Velocidade
   display.setTextSize(4);
   display.setCursor(0, 15);
   display.print(velocidade, 1);
 
-  // Unidade
   display.setTextSize(1);
   display.setCursor(100, 32);
   display.print("km/h");
@@ -237,11 +240,9 @@ void atualizarOLED(float velocidade) {
 void setup() {
 
   Serial.begin(9600);
-
-  // Comunicacao I2C
   Wire.begin();
 
-  // Inicializacao do OLED
+  // Inicializa o OLED
   if (!display.begin(
         SSD1306_SWITCHCAPVCC,
         0x3C
@@ -250,7 +251,7 @@ void setup() {
     Serial.println("ERRO: OLED nao encontrado!");
 
     while (true) {
-      // Interrompe a execucao se o OLED falhar
+      // Para a execucao se o display nao for encontrado
     }
   }
 
@@ -270,15 +271,14 @@ void setup() {
 
   delay(1000);
 
-  // Configuracao do LED
+  // Saidas
   pinMode(PINO_LED, OUTPUT);
-  digitalWrite(PINO_LED, LOW);
-
-  // Configuracao do buzzer
   pinMode(PINO_BUZZER, OUTPUT);
+
+  digitalWrite(PINO_LED, LOW);
   digitalWrite(PINO_BUZZER, LOW);
 
-  // Configuracao do anemometro
+  // Entrada do anemometro
   pinMode(PINO_ANEMOMETRO, INPUT_PULLUP);
 
   attachInterrupt(
@@ -287,22 +287,18 @@ void setup() {
     FALLING
   );
 
-  // Inicializacao da sincronizacao com o RTC.
-  // O programa nao depende do RTC para medir o intervalo.
+  // Inicializa a sincronizacao do RTC
   setSyncProvider(getRTC);
 
   if (timeStatus() == timeSet) {
     Serial.println("RTC sincronizado.");
   } else {
-    Serial.println(
-      "Aviso: RTC nao sincronizado. Medicao por millis()."
-    );
+    Serial.println("RTC nao sincronizado; usando millis().");
   }
 
-  // Inicio do intervalo de medicao
+  // Inicia a medicao independente do RTC
   ultimaMedicao = millis();
 
-  // Exibe zero ate a primeira medicao
   atualizarOLED(0.0);
 
   Serial.println("Anemometro iniciado.");
@@ -316,37 +312,43 @@ void loop() {
 
   unsigned long tempoAtual = millis();
 
-  // Executa uma medicao a cada segundo,
-  // sem depender do horario do RTC.
   if (tempoAtual - ultimaMedicao >= INTERVALO_MEDICAO) {
 
-    // Atualiza a referencia de tempo
-    ultimaMedicao += INTERVALO_MEDICAO;
+    // Reinicia a janela de medicao a partir do instante atual
+    ultimaMedicao = tempoAtual;
 
-    // Copia e zera o contador com as interrupcoes pausadas
+    // Copia e zera os pulsos com seguranca
     noInterrupts();
     unsigned long pulsos = contadorPulsos;
     contadorPulsos = 0;
     interrupts();
 
-    // Converte os pulsos usando a calibracao original
+    // Velocidade calculada pela calibracao original
     float velocidadeAtual = converterVelocidade(pulsos);
 
-    // Aplica EMA apenas para o sistema de alerta
-    float velocidadeAlerta = aplicarEMA(velocidadeAtual);
+    // Estabiliza apenas a indicacao do OLED
+    float velocidadeTela =
+      estabilizarDisplay(velocidadeAtual);
 
-    // Controla o LED e o buzzer
+    // Filtra separadamente o alerta
+    float velocidadeAlerta =
+      aplicarEMA(velocidadeAtual);
+
     controlarAlerta(velocidadeAlerta);
 
-    // Atualiza o OLED com a velocidade sem EMA
-    atualizarOLED(velocidadeAtual);
+    // Atualiza o OLED
+    atualizarOLED(velocidadeTela);
 
-    // Exibe os dados no Monitor Serial
+    // Monitor Serial
     Serial.print("Pulsos: ");
     Serial.print(pulsos);
 
-    Serial.print(" | Velocidade OLED: ");
+    Serial.print(" | Velocidade medida: ");
     Serial.print(velocidadeAtual, 1);
+    Serial.print(" km/h");
+
+    Serial.print(" | Velocidade OLED: ");
+    Serial.print(velocidadeTela, 1);
     Serial.print(" km/h");
 
     Serial.print(" | EMA alerta: ");
@@ -354,4 +356,3 @@ void loop() {
     Serial.println(" km/h");
   }
 }
-
