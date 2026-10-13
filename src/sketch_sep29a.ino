@@ -20,14 +20,22 @@
 #define INTERVALO_MEDICAO 1000UL
 
 // =====================================================
-// FILTROS
+// FILTRO EMA PARA O ALERTA
 // =====================================================
 
-// EMA aplicado somente ao alerta
 #define ALPHA 0.20
 
-// Estabilizacao da exibicao
-#define ZONA_ESTABILIDADE 0.5
+// =====================================================
+// MEDIA MOVEL PARA O OLED
+// =====================================================
+
+#define NUM_LEITURAS 5
+
+float leituras[NUM_LEITURAS] = {0};
+int indiceLeitura = 0;
+int quantidadeLeituras = 0;
+
+float somaLeituras = 0.0;
 
 // =====================================================
 // OLED
@@ -41,7 +49,7 @@ Adafruit_SSD1306 display(
 );
 
 // =====================================================
-// RTC
+// RTC DS3232 / DS3231 COMPATIVEL
 // =====================================================
 
 DS3232RTC rtc;
@@ -57,20 +65,17 @@ time_t getRTC() {
 volatile unsigned long contadorPulsos = 0;
 
 // =====================================================
-// TEMPO
+// CONTROLE DE TEMPO
 // =====================================================
 
 unsigned long ultimaMedicao = 0;
 
 // =====================================================
-// VARIAVEIS DOS FILTROS
+// VARIAVEIS DO ALERTA
 // =====================================================
 
 float velocidadeEMA = 0.0;
-float velocidadeExibida = 0.0;
-
 bool primeiraLeituraEMA = true;
-bool primeiraLeituraDisplay = true;
 
 // =====================================================
 // INTERRUPCAO DO ANEMOMETRO
@@ -155,6 +160,33 @@ float converterVelocidade(unsigned long pulsos) {
 }
 
 // =====================================================
+// MEDIA MOVEL PARA ESTABILIZAR O OLED
+// =====================================================
+
+float calcularMediaMovel(float velocidadeAtual) {
+
+  // Remove a leitura mais antiga da soma
+  if (quantidadeLeituras == NUM_LEITURAS) {
+    somaLeituras -= leituras[indiceLeitura];
+  } else {
+    quantidadeLeituras++;
+  }
+
+  // Guarda a leitura atual
+  leituras[indiceLeitura] = velocidadeAtual;
+  somaLeituras += velocidadeAtual;
+
+  // Avanca a posicao do vetor circular
+  indiceLeitura++;
+
+  if (indiceLeitura >= NUM_LEITURAS) {
+    indiceLeitura = 0;
+  }
+
+  return somaLeituras / quantidadeLeituras;
+}
+
+// =====================================================
 // FILTRO EMA PARA O ALERTA
 // =====================================================
 
@@ -172,30 +204,6 @@ float aplicarEMA(float leituraAtual) {
     (1.0 - ALPHA) * velocidadeEMA;
 
   return velocidadeEMA;
-}
-
-// =====================================================
-// ESTABILIZACAO DO VALOR NO OLED
-// =====================================================
-
-float estabilizarDisplay(float velocidadeAtual) {
-
-  if (primeiraLeituraDisplay) {
-    velocidadeExibida = velocidadeAtual;
-    primeiraLeituraDisplay = false;
-
-    return velocidadeExibida;
-  }
-
-  // Mantem o valor anterior se a diferenca for pequena
-  if (abs(velocidadeAtual - velocidadeExibida)
-      <= ZONA_ESTABILIDADE) {
-    return velocidadeExibida;
-  }
-
-  velocidadeExibida = velocidadeAtual;
-
-  return velocidadeExibida;
 }
 
 // =====================================================
@@ -251,7 +259,7 @@ void setup() {
     Serial.println("ERRO: OLED nao encontrado!");
 
     while (true) {
-      // Para a execucao se o display nao for encontrado
+      // Interrompe se o display nao for encontrado
     }
   }
 
@@ -271,14 +279,14 @@ void setup() {
 
   delay(1000);
 
-  // Saidas
+  // Configura LED e buzzer
   pinMode(PINO_LED, OUTPUT);
   pinMode(PINO_BUZZER, OUTPUT);
 
   digitalWrite(PINO_LED, LOW);
   digitalWrite(PINO_BUZZER, LOW);
 
-  // Entrada do anemometro
+  // Configura o anemometro
   pinMode(PINO_ANEMOMETRO, INPUT_PULLUP);
 
   attachInterrupt(
@@ -287,7 +295,7 @@ void setup() {
     FALLING
   );
 
-  // Inicializa a sincronizacao do RTC
+  // Inicializa o RTC
   setSyncProvider(getRTC);
 
   if (timeStatus() == timeSet) {
@@ -296,7 +304,7 @@ void setup() {
     Serial.println("RTC nao sincronizado; usando millis().");
   }
 
-  // Inicia a medicao independente do RTC
+  // Inicia a contagem do intervalo
   ultimaMedicao = millis();
 
   atualizarOLED(0.0);
@@ -314,45 +322,45 @@ void loop() {
 
   if (tempoAtual - ultimaMedicao >= INTERVALO_MEDICAO) {
 
-    // Reinicia a janela de medicao a partir do instante atual
+    // Inicia uma nova janela de medicao
     ultimaMedicao = tempoAtual;
 
-    // Copia e zera os pulsos com seguranca
+    // Copia e zera o contador de pulsos
     noInterrupts();
     unsigned long pulsos = contadorPulsos;
     contadorPulsos = 0;
     interrupts();
 
-    // Velocidade calculada pela calibracao original
+    // Converte os pulsos pela calibracao original
     float velocidadeAtual = converterVelocidade(pulsos);
 
-    // Estabiliza apenas a indicacao do OLED
+    // Suaviza as variacoes apresentadas no OLED
     float velocidadeTela =
-      estabilizarDisplay(velocidadeAtual);
+      calcularMediaMovel(velocidadeAtual);
 
-    // Filtra separadamente o alerta
+    // Calcula a velocidade filtrada para o alerta
     float velocidadeAlerta =
       aplicarEMA(velocidadeAtual);
 
+    // Controla LED e buzzer
     controlarAlerta(velocidadeAlerta);
 
-    // Atualiza o OLED
+    // Atualiza a tela com a media movel
     atualizarOLED(velocidadeTela);
 
-    // Monitor Serial
+    // Informacoes de diagnostico
     Serial.print("Pulsos: ");
     Serial.print(pulsos);
 
-    Serial.print(" | Velocidade medida: ");
+    Serial.print(" | Medida: ");
     Serial.print(velocidadeAtual, 1);
-    Serial.print(" km/h");
 
-    Serial.print(" | Velocidade OLED: ");
+    Serial.print(" km/h | OLED: ");
     Serial.print(velocidadeTela, 1);
-    Serial.print(" km/h");
 
-    Serial.print(" | EMA alerta: ");
+    Serial.print(" km/h | Alerta: ");
     Serial.print(velocidadeAlerta, 1);
+
     Serial.println(" km/h");
   }
 }
