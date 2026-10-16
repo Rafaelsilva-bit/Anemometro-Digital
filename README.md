@@ -1,47 +1,76 @@
-# Manômetro Digital
+# Anemômetro Digital
 
-Projeto de desenvolvimento de um manômetro digital para medição e monitoramento de pressão utilizando sensor de pressão, microcontrolador e display OLED.
+Projeto acadêmico de desenvolvimento de um anemômetro digital para medição e monitoramento da velocidade do vento, utilizando Arduino Uno, display OLED e simulação de circuito no Proteus.
 
 ## Objetivo
 
-Desenvolver um instrumento capaz de medir pressão em tempo real, exibir os resultados em um display OLED e permitir a calibração dos valores medidos para maior precisão.
+Desenvolver um sistema capaz de medir a velocidade do vento, apresentar os valores em tempo real em um display OLED e emitir alertas visuais e sonoros quando a velocidade atingir o limite estabelecido de 40 km/h.
 
 ## Funcionalidades
 
-- Leitura de pressão em tempo real
-- Exibição dos dados em display OLED
-- Conversão do sinal do sensor em unidades de pressão
-- Calibração do sistema
-- Monitoramento contínuo dos valores medidos
+- Medição da velocidade do vento por meio da contagem de pulsos do anemômetro.
+- Exibição da velocidade em km/h em um display OLED de 128 × 64 pixels.
+- Calibração da conversão de pulsos para velocidade, utilizando valores de referência.
+- Aplicação de filtros digitais para reduzir oscilações e melhorar a estabilidade das leituras.
+- Atualização das medições em intervalos de um segundo.
+- Acionamento de LED e buzzer quando a velocidade atinge ou ultrapassa 40 km/h.
+- Desligamento dos alertas quando a velocidade fica abaixo do limite.
+- Utilização de módulo RTC para suporte à data e hora do sistema.
+- Monitoramento das leituras para auxiliar nos testes e na validação do projeto.
 
-## Hardware Utilizado
+## Hardware e Componentes
 
-- Sensor de pressão
-- Display OLED
-- Microcontrolador
-- Fonte de alimentação
+- Arduino Uno
+- Anemômetro simulado no Proteus
+- Display OLED SSD1306, resolução de 128 × 64 pixels, comunicação I²C
+- LED para sinalização visual
+- Buzzer para sinalização sonora
+- Módulo RTC DS3232/DS3231
+- Circuito simulado no Proteus Design Suite
+
+## Tecnologias Utilizadas
+
+- **Arduino IDE:** desenvolvimento e compilação do código.
+- **Linguagem C/C++:** programação do microcontrolador.
+- **Proteus Design Suite:** montagem e simulação do circuito eletrônico.
+- **Bibliotecas:** Adafruit GFX, Adafruit SSD1306, DS3232RTC, TimeLib e Wire.
+
+## Funcionamento do Sistema
+
+O anemômetro gera pulsos de acordo com a velocidade do vento. O Arduino contabiliza esses pulsos durante intervalos de um segundo e converte a quantidade medida em uma velocidade aproximada, utilizando a calibração definida no código.
+
+Para melhorar a leitura, são utilizados filtros digitais que ajudam a reduzir pequenas oscilações sem comprometer a resposta às mudanças de velocidade.
+
+O resultado é apresentado no display OLED em km/h. Quando a velocidade atinge ou ultrapassa 40 km/h, o sistema aciona o LED e o buzzer. Quando a velocidade fica abaixo desse limite, os alertas são desligados.
 
 ## Estrutura do Projeto
 
 ```text
-Manometro-digital/
+Anemometro-digital/
 │
-├── src/          # Código-fonte
-├── imagens/      # Fotos e registros do projeto
-└── README.md
+├── src/          # Código-fonte do Arduino
+├── imagens/      # Imagens do circuito e dos testes
+└── README.md     # Documentação do projeto
 ```
 
-## Imagens
+*Observação: a estrutura acima é uma sugestão de organização e deve corresponder às pastas existentes no repositório.*
 
-As imagens do protótipo, circuito e testes de funcionamento encontram-se na pasta `imagens`.
+## Simulação e Testes
+
+O projeto é desenvolvido e testado no Proteus, permitindo variar a velocidade do vento simulada e observar o comportamento do sistema.
+
+Os testes incluem a verificação da calibração, da estabilidade das leituras no OLED, da resposta às mudanças de velocidade e do acionamento dos alertas ao atingir o limite de 40 km/h.
+
+Nos testes realizados até o momento, o display apresentou pequenas oscilações em torno de 10 km/h e 40 km/h, mantendo uma resposta rápida às alterações de velocidade. Esses resultados correspondem às condições simuladas e não representam, por si só, uma validação física do equipamento.
 
 ## Aplicações
 
-- Instrumentação industrial
-- Automação industrial
-- Monitoramento de processos
-- Projetos acadêmicos de engenharia
-- Sistemas embarcados
+- Instrumentação e monitoramento ambiental.
+- Estudos de velocidade do vento.
+- Projetos acadêmicos de engenharia mecatrônica.
+- Sistemas embarcados.
+- Simulação e desenvolvimento de sistemas de medição.
+- Monitoramento com alertas visuais e sonoros.
 
 ## Autores
 
