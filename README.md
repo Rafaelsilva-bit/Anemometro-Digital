@@ -1,4 +1,6 @@
-# Anemômetro Digital
+SISTEMA DE ALARME SONORO E VISUAL PARA SEGURANÇA EM
+TRABALHO EM ALTURA, BASEADO NO MONITORAMENTO DA
+VELOCIDADE DO VENTO
 
 Projeto acadêmico de desenvolvimento de um anemômetro digital para medição e monitoramento da velocidade do vento, utilizando Arduino Uno, display OLED e simulação de circuito no Proteus.
 
