@@ -74,6 +74,9 @@ float velocidadeOLED = 0.0;
 bool primeiraLeituraEMA = true;
 bool primeiroValorOLED = true;
 
+// Controle do alerta intermitente
+unsigned long ultimoPisca = 0;
+bool estadoAlerta = false;
 // =====================================================
 // INTERRUPCAO DO ANEMOMETRO
 // =====================================================
@@ -223,20 +226,41 @@ void controlarAlerta(
   float velocidadeFiltrada
 ) {
 
-  // Liga imediatamente ao atingir o limite.
-  // Mantem ligado enquanto o EMA continuar no limite.
-  if (
-    velocidadeAtual >= VELOCIDADE_LIMITE ||
-    velocidadeFiltrada >= VELOCIDADE_LIMITE
-  ) {
+  float velocidadeReferencia =
+    max(velocidadeAtual, velocidadeFiltrada);
+
+  // 45 km/h ou mais: alerta continuo
+  if (velocidadeReferencia >= 45.0) {
+
     digitalWrite(PINO_LED, HIGH);
     digitalWrite(PINO_BUZZER, HIGH);
-  } else {
+    estadoAlerta = true;
+
+  }
+
+  // Entre 40 e 45 km/h: alerta intermitente
+  else if (velocidadeReferencia >= 40.0) {
+
+    if (millis() - ultimoPisca >= 500) {
+
+      ultimoPisca = millis();
+      estadoAlerta = !estadoAlerta;
+
+      digitalWrite(PINO_LED, estadoAlerta);
+      digitalWrite(PINO_BUZZER, estadoAlerta);
+    }
+
+  }
+
+  // Abaixo de 40 km/h: desligado
+  else {
+
     digitalWrite(PINO_LED, LOW);
     digitalWrite(PINO_BUZZER, LOW);
+    estadoAlerta = false;
+
   }
 }
-
 // =====================================================
 // ATUALIZACAO DO OLED
 // =====================================================
