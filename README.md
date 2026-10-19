@@ -88,7 +88,7 @@ Esses pulsos são processados e convertidos em velocidade do vento utilizando um
 Após o processamento:
 
 1. A velocidade é calculada.
-2. O valor é exibido no display OLED.
+2. O valor é exibido no display LCD.
 3. O sistema verifica o limite de segurança.
 4. Caso a velocidade seja superior a 40 km/h:
    - o LED é acionado;
