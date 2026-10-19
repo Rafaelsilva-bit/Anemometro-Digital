@@ -1,49 +1,46 @@
 
 #include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
+#include <LiquidCrystal_I2C.h>
 #include <DS3232RTC.h>
 #include <TimeLib.h>
+#include <string.h>
+#include <stdio.h>
+#include <math.h>
 
 // =====================================================
 // CONFIGURACOES GERAIS
 // =====================================================
-
-#define SCREEN_WIDTH 128
-#define SCREEN_HEIGHT 64
 
 #define PINO_ANEMOMETRO 2
 #define PINO_LED 13
 #define PINO_BUZZER 12
 
 #define VELOCIDADE_LIMITE 40.0
+#define VELOCIDADE_ALERTA_CONTINUO 45.0
+
 #define INTERVALO_MEDICAO 1000UL
+#define INTERVALO_PISCA 500UL
 
 // =====================================================
 // FILTROS
 // =====================================================
 
-// EMA para o alerta
 #define ALPHA 0.20
 
-// Filtro adaptativo do OLED
-#define ALPHA_OLED 0.35
+#define ALPHA_LCD 0.35
 #define LIMITE_MUDANCA_RAPIDA 2.0
 #define ZONA_ESTABILIDADE 0.25
 
 // =====================================================
-// OLED
+// LCD 2004B COM PCF8574
 // =====================================================
 
-Adafruit_SSD1306 display(
-  SCREEN_WIDTH,
-  SCREEN_HEIGHT,
-  &Wire,
-  -1
-);
+LiquidCrystal_I2C lcd(0x20, 20, 4);
+
+char ultimaLinhaLCD[4][21] = {};
 
 // =====================================================
-// RTC DS3232 / DS3231 COMPATIVEL
+// RTC DS3232 / DS3231
 // =====================================================
 
 DS3232RTC rtc;
@@ -63,20 +60,25 @@ volatile unsigned long contadorPulsos = 0;
 // =====================================================
 
 unsigned long ultimaMedicao = 0;
+unsigned long ultimoPisca = 0;
 
 // =====================================================
 // VARIAVEIS DOS FILTROS
 // =====================================================
 
 float velocidadeEMA = 0.0;
-float velocidadeOLED = 0.0;
+float velocidadeLCD = 0.0;
 
 bool primeiraLeituraEMA = true;
-bool primeiroValorOLED = true;
+bool primeiroValorLCD = true;
 
-// Controle do alerta intermitente
-unsigned long ultimoPisca = 0;
+// =====================================================
+// ESTADO DO ALERTA
+// =====================================================
+
 bool estadoAlerta = false;
+bool alertaIntermitenteAtivo = false;
+
 // =====================================================
 // INTERRUPCAO DO ANEMOMETRO
 // =====================================================
@@ -92,109 +94,79 @@ void contarPulso() {
 
 float converterVelocidade(unsigned long pulsos) {
 
-  if (pulsos == 0) {
-    return 0.0;
-  }
+  if (pulsos == 0) return 0.0;
 
-  if (pulsos <= 5) {
+  if (pulsos <= 5)
     return 5.0;
-  }
 
-  if (pulsos <= 9) {
-    return 5.0 +
-           (pulsos - 5.5) * 5.0 / 4.0;
-  }
+  if (pulsos <= 9)
+    return 5.0 + (pulsos - 5.5) * 5.0 / 4.0;
 
-  if (pulsos <= 13) {
-    return 10.0 +
-           (pulsos - 9.5) * 5.0 / 4.0;
-  }
+  if (pulsos <= 13)
+    return 10.0 + (pulsos - 9.5) * 5.0 / 4.0;
 
-  if (pulsos <= 17) {
-    return 15.0 +
-           (pulsos - 13.5) * 5.0 / 4.0;
-  }
+  if (pulsos <= 17)
+    return 15.0 + (pulsos - 13.5) * 5.0 / 4.0;
 
-  if (pulsos <= 21) {
-    return 20.0 +
-           (pulsos - 17.5) * 5.0 / 4.0;
-  }
+  if (pulsos <= 21)
+    return 20.0 + (pulsos - 17.5) * 5.0 / 4.0;
 
-  if (pulsos <= 25) {
-    return 25.0 +
-           (pulsos - 21.5) * 5.0 / 4.0;
-  }
+  if (pulsos <= 25)
+    return 25.0 + (pulsos - 21.5) * 5.0 / 4.0;
 
-  if (pulsos <= 30) {
-    return 30.0 +
-           (pulsos - 25.5) * 5.0 / 5.0;
-  }
+  if (pulsos <= 30)
+    return 30.0 + (pulsos - 25.5) * 5.0 / 5.0;
 
-  if (pulsos <= 34) {
-    return 35.0 +
-           (pulsos - 30.5) * 5.0 / 4.0;
-  }
+  if (pulsos <= 34)
+    return 35.0 + (pulsos - 30.5) * 5.0 / 4.0;
 
-  if (pulsos <= 38) {
-    return 40.0 +
-           (pulsos - 34.5) * 5.0 / 4.0;
-  }
+  if (pulsos <= 38)
+    return 40.0 + (pulsos - 34.5) * 5.0 / 4.0;
 
-  if (pulsos <= 42) {
-    return 45.0 +
-           (pulsos - 38.5) * 5.0 / 4.0;
-  }
+  if (pulsos <= 42)
+    return 45.0 + (pulsos - 38.5) * 5.0 / 4.0;
 
-  if (pulsos <= 46) {
-    return 50.0 +
-           (pulsos - 42.5) * 5.0 / 4.0;
-  }
+  if (pulsos <= 46)
+    return 50.0 + (pulsos - 42.5) * 5.0 / 4.0;
 
-  if (pulsos <= 50) {
-    return 55.0 +
-           (pulsos - 46.5) * 5.0 / 4.0;
-  }
+  if (pulsos <= 50)
+    return 55.0 + (pulsos - 46.5) * 5.0 / 4.0;
 
-  return 60.0 +
-         (pulsos - 50.5) * 5.0 / 4.0;
+  return 60.0 + (pulsos - 50.5) * 5.0 / 4.0;
 }
 
 // =====================================================
-// FILTRO ADAPTATIVO PARA O OLED
+// FILTRO ADAPTATIVO DO LCD
 // =====================================================
 
-float filtrarVelocidadeOLED(float velocidadeAtual) {
+float filtrarVelocidadeLCD(float velocidadeAtual) {
 
-  // Primeira leitura: inicializa sem atraso
-  if (primeiroValorOLED) {
-    velocidadeOLED = velocidadeAtual;
-    primeiroValorOLED = false;
-
-    return velocidadeOLED;
+  if (primeiroValorLCD) {
+    velocidadeLCD = velocidadeAtual;
+    primeiroValorLCD = false;
+    return velocidadeLCD;
   }
 
-  float diferenca = velocidadeAtual - velocidadeOLED;
+  float diferenca = velocidadeAtual - velocidadeLCD;
 
-  // Mudanca significativa: acompanha rapidamente
-  if (abs(diferenca) >= LIMITE_MUDANCA_RAPIDA) {
-    velocidadeOLED = velocidadeAtual;
-
-    return velocidadeOLED;
+  // Acompanha rapidamente mudancas maiores
+  if (fabs(diferenca) >= LIMITE_MUDANCA_RAPIDA) {
+    velocidadeLCD = velocidadeAtual;
+    return velocidadeLCD;
   }
 
-  // Suaviza variacoes pequenas
+  // Suaviza pequenas variacoes
   float novaVelocidade =
-    ALPHA_OLED * velocidadeAtual +
-    (1.0 - ALPHA_OLED) * velocidadeOLED;
+    ALPHA_LCD * velocidadeAtual +
+    (1.0 - ALPHA_LCD) * velocidadeLCD;
 
-  // Ignora pequenas oscilacoes na indicacao
-  if (abs(novaVelocidade - velocidadeOLED)
+  // Ignora oscilacoes muito pequenas
+  if (fabs(novaVelocidade - velocidadeLCD)
       >= ZONA_ESTABILIDADE) {
-
-    velocidadeOLED = novaVelocidade;
+    velocidadeLCD = novaVelocidade;
   }
 
-  return velocidadeOLED;
+  return velocidadeLCD;
 }
 
 // =====================================================
@@ -206,7 +178,6 @@ float aplicarEMA(float leituraAtual) {
   if (primeiraLeituraEMA) {
     velocidadeEMA = leituraAtual;
     primeiraLeituraEMA = false;
-
     return velocidadeEMA;
   }
 
@@ -226,59 +197,163 @@ void controlarAlerta(
   float velocidadeFiltrada
 ) {
 
+  // Usa a maior leitura para evitar atrasar o alerta
   float velocidadeReferencia =
-    max(velocidadeAtual, velocidadeFiltrada);
+    (velocidadeAtual > velocidadeFiltrada)
+    ? velocidadeAtual
+    : velocidadeFiltrada;
 
-  // 45 km/h ou mais: alerta continuo
-  if (velocidadeReferencia >= 45.0) {
+  unsigned long agora = millis();
 
-    digitalWrite(PINO_LED, HIGH);
-    digitalWrite(PINO_BUZZER, HIGH);
-    estadoAlerta = true;
-
-  }
-
-  // Entre 40 e 45 km/h: alerta intermitente
-  else if (velocidadeReferencia >= 40.0) {
-
-    if (millis() - ultimoPisca >= 500) {
-
-      ultimoPisca = millis();
-      estadoAlerta = !estadoAlerta;
-
-      digitalWrite(PINO_LED, estadoAlerta);
-      digitalWrite(PINO_BUZZER, estadoAlerta);
-    }
-
-  }
-
-  // Abaixo de 40 km/h: desligado
-  else {
+  // ABAIXO DE 40 KM/H: DESLIGADO
+  if (velocidadeReferencia < VELOCIDADE_LIMITE) {
 
     digitalWrite(PINO_LED, LOW);
     digitalWrite(PINO_BUZZER, LOW);
-    estadoAlerta = false;
 
+    estadoAlerta = false;
+    alertaIntermitenteAtivo = false;
+
+    return;
+  }
+
+  // A PARTIR DE 45 KM/H: LIGADO CONTINUAMENTE
+  if (velocidadeReferencia >= VELOCIDADE_ALERTA_CONTINUO) {
+
+    digitalWrite(PINO_LED, HIGH);
+    digitalWrite(PINO_BUZZER, HIGH);
+
+    estadoAlerta = true;
+    alertaIntermitenteAtivo = false;
+
+    return;
+  }
+
+  // ENTRE 40 E 44,9 KM/H: ALERTA INTERMITENTE
+  if (!alertaIntermitenteAtivo) {
+
+    alertaIntermitenteAtivo = true;
+    estadoAlerta = true;
+    ultimoPisca = agora;
+
+    digitalWrite(PINO_LED, HIGH);
+    digitalWrite(PINO_BUZZER, HIGH);
+
+    return;
+  }
+
+  // Alterna LED e buzzer a cada 500 ms
+  if (agora - ultimoPisca >= INTERVALO_PISCA) {
+
+    ultimoPisca = agora;
+    estadoAlerta = !estadoAlerta;
+
+    digitalWrite(PINO_LED, estadoAlerta ? HIGH : LOW);
+    digitalWrite(PINO_BUZZER, estadoAlerta ? HIGH : LOW);
   }
 }
+
 // =====================================================
-// ATUALIZACAO DO OLED
+// ATUALIZA UMA LINHA SEM PISCAR O LCD
 // =====================================================
 
-void atualizarOLED(float velocidade) {
+void atualizarLinhaLCD(byte linha, const char* texto) {
 
-  display.clearDisplay();
-  display.setTextColor(SSD1306_WHITE);
+  if (linha >= 4) return;
 
-  display.setTextSize(4);
-  display.setCursor(0, 15);
-  display.print(velocidade, 1);
+  char buffer[21];
 
-  display.setTextSize(1);
-  display.setCursor(100, 32);
-  display.print("km/h");
+  memset(buffer, ' ', 20);
+  buffer[20] = '\0';
 
-  display.display();
+  strncpy(buffer, texto, 20);
+
+  if (strncmp(buffer, ultimaLinhaLCD[linha], 20) != 0) {
+
+    lcd.setCursor(0, linha);
+    lcd.print(buffer);
+
+    memcpy(ultimaLinhaLCD[linha], buffer, 21);
+  }
+}
+
+// =====================================================
+// ATUALIZACAO DO LCD COM STATUS AUTOMATICO
+// =====================================================
+
+void atualizarLCD(float velocidade) {
+
+  char linhaVelocidade[21];
+  char valorVelocidade[10];
+
+  // Linha 1: nome do sistema
+  atualizarLinhaLCD(0, "ANEMOMETRO DIGITAL");
+
+  // Converte o numero decimal para texto
+  // Evita o problema de aparecer "? km/h"
+  dtostrf(velocidade, 5, 1, valorVelocidade);
+
+  // Monta a linha da velocidade
+  snprintf(
+    linhaVelocidade,
+    sizeof(linhaVelocidade),
+    "Vento: %s km/h",
+    valorVelocidade
+  );
+
+  // Linha 2: velocidade medida
+  atualizarLinhaLCD(1, linhaVelocidade);
+
+  // Linha 3: status automatico
+  if (velocidade >= VELOCIDADE_ALERTA_CONTINUO) {
+
+    atualizarLinhaLCD(2, "STATUS: PERIGO");
+
+  } else if (velocidade >= VELOCIDADE_LIMITE) {
+
+    atualizarLinhaLCD(2, "STATUS: ALERTA");
+
+  } else if (velocidade >= 30.0) {
+
+    atualizarLinhaLCD(2, "STATUS: VENTO FORTE");
+
+  } else if (velocidade >= 20.0) {
+
+    atualizarLinhaLCD(2, "STATUS: ATENCAO");
+
+  } else {
+
+    atualizarLinhaLCD(2, "STATUS: NORMAL");
+  }
+
+  // Linha 4: limite configurado
+  atualizarLinhaLCD(3, "Limite: 40 km/h");
+}
+
+// =====================================================
+// TELA DE INICIALIZACAO
+// =====================================================
+
+void mostrarTelaInicial() {
+
+  lcd.clear();
+
+  memset(ultimaLinhaLCD, 0, sizeof(ultimaLinhaLCD));
+
+  lcd.setCursor(3, 0);
+  lcd.print("ANEMOMETRO");
+
+  lcd.setCursor(4, 1);
+  lcd.print("DIGITAL");
+
+  lcd.setCursor(3, 2);
+  lcd.print("INICIANDO...");
+
+  delay(1500);
+
+  lcd.clear();
+
+  memset(ultimaLinhaLCD, 0, sizeof(ultimaLinhaLCD));
 }
 
 // =====================================================
@@ -290,43 +365,17 @@ void setup() {
   Serial.begin(9600);
   Wire.begin();
 
-  // Inicializacao do OLED
-  if (!display.begin(
-        SSD1306_SWITCHCAPVCC,
-        0x3C
-      )) {
+  lcd.init();
+  lcd.backlight();
 
-    Serial.println("ERRO: OLED nao encontrado!");
+  mostrarTelaInicial();
 
-    while (true) {
-      // Para a execucao se o OLED nao for encontrado
-    }
-  }
-
-  // Tela inicial
-  display.clearDisplay();
-  display.setTextColor(SSD1306_WHITE);
-
-  display.setTextSize(2);
-  display.setCursor(34, 15);
-  display.println("TIMER");
-
-  display.setTextSize(1);
-  display.setCursor(34, 40);
-  display.println("INICIANDO...");
-
-  display.display();
-
-  delay(1000);
-
-  // LED e buzzer
   pinMode(PINO_LED, OUTPUT);
   pinMode(PINO_BUZZER, OUTPUT);
 
   digitalWrite(PINO_LED, LOW);
   digitalWrite(PINO_BUZZER, LOW);
 
-  // Anemometro
   pinMode(PINO_ANEMOMETRO, INPUT_PULLUP);
 
   attachInterrupt(
@@ -335,7 +384,7 @@ void setup() {
     FALLING
   );
 
-  // RTC: sincronizacao opcional para o restante do projeto
+  // Sincronizacao do RTC
   setSyncProvider(getRTC);
 
   if (timeStatus() == timeSet) {
@@ -344,10 +393,9 @@ void setup() {
     Serial.println("RTC nao sincronizado; usando millis().");
   }
 
-  // Inicio da medicao
   ultimaMedicao = millis();
 
-  atualizarOLED(0.0);
+  atualizarLCD(0.0);
 
   Serial.println("Anemometro iniciado.");
 }
@@ -362,46 +410,45 @@ void loop() {
 
   if (tempoAtual - ultimaMedicao >= INTERVALO_MEDICAO) {
 
-    // Inicia uma nova janela de medicao
     ultimaMedicao = tempoAtual;
 
-    // Copia e zera o contador de pulsos
+    // Copia e zera o contador com seguranca
     noInterrupts();
     unsigned long pulsos = contadorPulsos;
     contadorPulsos = 0;
     interrupts();
 
-    // Velocidade calculada pela calibracao original
+    // Calcula a velocidade pela calibracao original
     float velocidadeAtual = converterVelocidade(pulsos);
 
-    // OLED: resposta rapida com suavizacao adaptativa
+    // Filtra a velocidade exibida
     float velocidadeTela =
-      filtrarVelocidadeOLED(velocidadeAtual);
+      filtrarVelocidadeLCD(velocidadeAtual);
 
-    // EMA independente para o alerta
+    // Filtra a velocidade usada pelo alerta
     float velocidadeAlerta =
       aplicarEMA(velocidadeAtual);
 
-    // Controle do LED e buzzer
+    // Controla LED e buzzer
     controlarAlerta(
       velocidadeAtual,
       velocidadeAlerta
     );
 
-    // Atualiza a tela
-    atualizarOLED(velocidadeTela);
+    // Atualiza velocidade e status do LCD
+    atualizarLCD(velocidadeTela);
 
-    // Diagnostico
+    // Diagnostico no monitor serial
     Serial.print("Pulsos: ");
     Serial.print(pulsos);
 
     Serial.print(" | Medida: ");
     Serial.print(velocidadeAtual, 1);
 
-    Serial.print(" km/h | OLED: ");
+    Serial.print(" km/h | LCD: ");
     Serial.print(velocidadeTela, 1);
 
-    Serial.print(" km/h | EMA alerta: ");
+    Serial.print(" km/h | EMA: ");
     Serial.print(velocidadeAlerta, 1);
 
     Serial.println(" km/h");
