@@ -6,7 +6,7 @@ Projeto acadêmico desenvolvido na disciplina de Sistemas Microcontrolados com o
 
 ## Objetivo
 
-Desenvolver um sistema capaz de medir a velocidade do vento, apresentar os valores em tempo real em um display OLED e emitir alertas visuais e sonoros quando a velocidade atingir ou ultrapassar o limite de segurança estabelecido em 40 km/h.
+Desenvolver um sistema capaz de medir a velocidade do vento, apresentar os valores em tempo real em um display OLED e emitir alertas visuais e sonoros quando a velocidade atingir ou ultrapassar o limite de segurança estabelecido em **40 km/h**.
 
 ---
 
@@ -40,7 +40,7 @@ Desenvolver um sistema capaz de medir a velocidade do vento, apresentar os valor
 ## Tecnologias Utilizadas
 
 - **Arduino IDE** para desenvolvimento do firmware.
-- **C/C++** para programação embarcada.
+- **Linguagem C/C++** para programação embarcada.
 - **Proteus Design Suite** para simulação eletrônica.
 - **Adafruit GFX** para renderização gráfica.
 - **Adafruit SSD1306** para controle do display OLED.
@@ -71,8 +71,8 @@ Anemometro-Digital/
 ├── Docs/
 │   ├── README.md
 │   ├── Fluxograma.jpg
-│   ├── Test.md
-│   └── Historico.md
+│   ├── testes.md
+│   └── historico.md
 │
 ├── imagens/
 │   ├── Esquema_Eletrico.jpg
@@ -87,32 +87,40 @@ Anemometro-Digital/
 
 ## Fluxograma do Sistema
 
-O fluxograma completo do funcionamento do sistema encontra-se na pasta:
-
+O fluxograma do funcionamento do sistema é apresentado abaixo.
 
 Docs/Fluxograma.jpg
-
 
 ---
 
 ## Esquema Elétrico
 
-O esquema elétrico utilizado para o desenvolvimento e validação do projeto encontra-se na pasta:
+O esquema elétrico utilizado para o desenvolvimento e validação do projeto é apresentado abaixo.
 
-
-
-
+imagens/Esquema_Eletrico.jpg
 
 A montagem foi simulada e testada utilizando o Proteus Design Suite.
 
 ---
 
-## Testes Realizados
+## Protótipo Desenvolvido no Proteus
 
-Os procedimentos de validação e testes encontram-se documentados em:
+A imagem abaixo apresenta a simulação completa do sistema.
+
+!magens/Prototipo_Proteus.jpg
+
+---
+
+## Sensor Utilizado
+
+Sensor Reed Switch utilizado para geração dos pulsos simulando a rotação do anemômetro.
+
+![Reed Switch](imagens/Reed_Switchestes Realizados
+
+Os procedimentos de validação encontram-se documentados em:
 
 ```text
-Docs/Test.md
+Docs/testes.md
 ```
 
 Foram realizados testes de:
@@ -133,6 +141,16 @@ Os testes demonstraram o correto funcionamento do sistema em ambiente de simula�
 O anemômetro apresentou capacidade de monitoramento contínuo da velocidade do vento, com atualização periódica das leituras e acionamento adequado dos dispositivos de alerta sempre que o limite de segurança foi atingido.
 
 As oscilações observadas foram compatíveis com o modelo de simulação utilizado e foram reduzidas pela aplicação dos filtros digitais implementados.
+
+---
+
+## Documentação Complementar
+
+Documentos adicionais do projeto:
+
+- `Docs/README.md`
+- `Docs/testes.md`
+- `Docs/historico.md`
 
 ---
 
