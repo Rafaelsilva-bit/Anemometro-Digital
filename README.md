@@ -111,7 +111,7 @@ O circuito foi desenvolvido e validado utilizando o Proteus Design Suite.
 
 O esquema completo encontra-se em:
 
-![Protótipo no Proteus]([https://raw.githubusercontent.com/Rafaelsilva-bit/Anemometro-Digital/main/imagens/PrototipoProteus.jpeg](https://github.com/Rafaelsilva-bit/Anemometro-Digital/blob/main/imagens/Prototipo%20Proteus.jpeg?raw=true))
+![Protótipo do circuito no Proteus](imagens/Prototipo%20Proteus.jpeg)
 
 ---
 
