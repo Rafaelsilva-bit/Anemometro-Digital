@@ -111,7 +111,7 @@ O circuito foi desenvolvido e validado utilizando o Proteus Design Suite.
 
 O esquema completo encontra-se em:
 
-![Protótipo no Proteus](imagens/Prototipo%20Proteus)
+![Protótipo no Proteus](imagens/Prototipo_Proteus.jpeg)
 
 ---
 
