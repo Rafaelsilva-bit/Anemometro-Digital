@@ -8,9 +8,9 @@ O sistema utiliza um **Arduino Uno**, um sensor baseado em **Reed Switch**, um *
 
 ## Integrantes
 
-- Rafael Pinheiro Silva
-- Nicole Aguiar Costa Mazzoni
 - Fabio Rodrigues Moreira
+- Nicole Aguiar Costa Mazzoni
+- Rafael Pinheiro Silva
 - Gustavo Henrique dos Santos Duarte
 - Caio Silva Marinho
 
