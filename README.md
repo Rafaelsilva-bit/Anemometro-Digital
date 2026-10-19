@@ -2,7 +2,7 @@
 
 Projeto desenvolvido na disciplina de **Sistemas Microcontrolados** com o objetivo de monitorar a velocidade do vento em tempo real e emitir alertas visuais e sonoros quando condições de risco forem identificadas.
 
-O sistema utiliza um **Arduino Uno**, um sensor baseado em **Reed Switch**, um **display OLED** para visualização dos dados e dispositivos de alerta para aumentar a segurança em operações de trabalho em altura.
+O sistema utiliza um **Arduino Uno**, um sensor baseado em **Reed Switch**, um **display LCD 20x4 com interface I²C (PCF8574)** para visualização dos dados e dispositivos de alerta para aumentar a segurança em operações de trabalho em altura.
 
 ---
 
@@ -21,7 +21,7 @@ O sistema utiliza um **Arduino Uno**, um sensor baseado em **Reed Switch**, um *
 Desenvolver um sistema embarcado capaz de:
 
 - Medir a velocidade do vento em tempo real;
-- Exibir as informações ao usuário por meio de um display OLED;
+- Exibir as informações ao usuário por meio de um display LCD;
 - Alertar operadores quando forem detectadas velocidades potencialmente perigosas;
 - Auxiliar na prevenção de acidentes em atividades realizadas em altura.
 
@@ -39,13 +39,14 @@ Este projeto propõe o desenvolvimento de um sistema de baixo custo capaz de rea
 
 - Medição automática da velocidade do vento;
 - Conversão dos pulsos gerados pelo sensor em km/h;
-- Exibição dos dados em display OLED;
-- Atualização das leituras a cada segundo;
+- Exibição dos dados em display LCD 20x4;
+- Atualização das leituras em tempo real;
 - Aplicação de filtros digitais para suavização das leituras;
 - Alerta visual utilizando LED;
 - Alerta sonoro utilizando buzzer;
-- Registro de data e horário utilizando RTC;
-- Monitoramento em tempo real.
+- Sincronização temporal utilizando RTC;
+- Monitoramento contínuo das condições de vento;
+- Sistema de alerta por níveis de criticidade.
 
 ---
 
@@ -55,10 +56,12 @@ Este projeto propõe o desenvolvimento de um sistema de baixo custo capaz de rea
 |------------|---------|
 | Arduino Uno | Controle principal do sistema |
 | Reed Switch | Simulação da geração de pulsos do anemômetro |
-| Display OLED SSD1306 | Exibição das informações |
+| Display LCD 20x4 | Exibição das informações |
+| PCF8574 | Interface I²C do LCD |
 | Buzzer | Alerta sonoro |
 | LED | Alerta visual |
-| RTC DS3231/DS3232 | Controle de data e hora |
+| RTC DS3231/DS3232 | Sincronização temporal |
+| Potenciômetro 10 kΩ | Ajuste de contraste do LCD |
 | Resistores | Proteção do circuito |
 | Proteus | Simulação e validação do projeto |
 
@@ -69,9 +72,8 @@ Este projeto propõe o desenvolvimento de um sistema de baixo custo capaz de rea
 - Arduino IDE
 - Linguagem C/C++
 - Proteus Design Suite
-- Adafruit GFX
-- Adafruit SSD1306
 - Wire
+- LiquidCrystal_I2C
 - TimeLib
 - DS3232RTC
 
@@ -86,12 +88,53 @@ Esses pulsos são processados e convertidos em velocidade do vento utilizando um
 Após o processamento:
 
 1. A velocidade é calculada.
-2. O valor é exibido no display OLED.
+2. O valor é exibido no display LCD.
 3. O sistema verifica o limite de segurança.
 4. Caso a velocidade seja superior a 40 km/h:
    - o LED é acionado;
    - o buzzer é acionado;
    - o alerta permanece ativo enquanto a condição de risco existir.
+
+      ### Níveis de Alerta
+
+| Velocidade do Vento | Comportamento |
+|---------------------|---------------|
+| Menor que 40 km/h | Operação normal |
+| Entre 40 e 45 km/h | Alerta intermitente |
+| Maior ou igual a 45 km/h | Alerta contínuo |
+
+---
+## Interface de Visualização
+
+O display LCD apresenta as informações operacionais em tempo real:
+
+```text
+ANEMOMETRO DIGITAL
+Vento: 32.5 km/h
+STATUS: NORMAL
+Limite: 40 km/h
+```
+
+Quando o limite de segurança é atingido:
+
+```text
+ANEMOMETRO DIGITAL
+Vento: 42.8 km/h
+STATUS: ALERTA
+Limite: 40 km/h
+```
+
+Em situações críticas:
+
+```text
+ANEMOMETRO DIGITAL
+Vento: 47.3 km/h
+STATUS: PERIGO
+Limite: 40 km/h
+```
+
+---
+
 
 ---
 
@@ -164,7 +207,9 @@ Docs/testes.md
 Entre os testes realizados destacam-se:
 
 - Teste de leitura do sensor;
-- Teste de exibição no OLED;
+- Teste de comunicação I²C;
+- Teste do PCF8574;
+- Teste de exibição no LCD;
 - Teste de acionamento do LED;
 - Teste de acionamento do buzzer;
 - Teste de integração do sistema;
@@ -178,10 +223,11 @@ Os testes demonstraram que o sistema foi capaz de:
 
 - Identificar alterações na velocidade simulada do vento;
 - Atualizar os dados em tempo real;
-- Exibir corretamente as informações no display OLED;
+- Exibir corretamente as informações no display LCD;
 - Acionar os dispositivos de alerta quando a velocidade ultrapassa o limite configurado;
-- Operar de forma estável em ambiente de simulação.
-
+- Operar de forma estável em ambiente de simulação;
+- Eliminar oscilações visuais causadas por atualizações excessivas do display;
+- Fornecer uma interface clara e intuitiva para o operador.
 ---
 
 ## Aplicações
@@ -198,7 +244,8 @@ O projeto pode ser aplicado em:
 
 ## Trabalhos Futuros
 
-- Armazenamento das medições em cartão SD;
+- Registro histórico das medições utilizando RTC;
+- Armazenamento em cartão SD;
 - Comunicação Wi-Fi;
 - Integração com plataformas IoT;
 - Desenvolvimento de aplicativo móvel;
@@ -211,8 +258,9 @@ O projeto pode ser aplicado em:
 
 O projeto atingiu os objetivos estabelecidos ao desenvolver um sistema de monitoramento da velocidade do vento com capacidade de emitir alertas sonoros e visuais em situações consideradas de risco.
 
-Os resultados obtidos demonstram a viabilidade da utilização de plataformas microcontroladas de baixo custo para aplicações de monitoramento e segurança, servindo como base para futuras melhorias e expansões do sistema.
+O uso do LCD 20x4 com interface I²C permitiu uma visualização clara das informações operacionais, enquanto os mecanismos de alerta garantiram resposta imediata em condições potencialmente perigosas.
 
+Os resultados obtidos demonstram a viabilidade da utilização de plataformas microcontroladas de baixo custo para aplicações de monitoramento e segurança, servindo como base para futuras melhorias e expansões do sistema.
 ---
 
 ## Documentação Complementar

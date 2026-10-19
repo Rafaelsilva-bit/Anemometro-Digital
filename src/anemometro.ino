@@ -2,6 +2,9 @@
 #include <LiquidCrystal_I2C.h>
 #include <DS3232RTC.h>
 #include <TimeLib.h>
+#include <string.h>
+#include <stdio.h>
+#include <math.h>
 
 // =====================================================
 // CONFIGURACOES GERAIS
@@ -12,28 +15,30 @@
 #define PINO_BUZZER 12
 
 #define VELOCIDADE_LIMITE 40.0
+#define VELOCIDADE_ALERTA_CONTINUO 45.0
+
 #define INTERVALO_MEDICAO 1000UL
+#define INTERVALO_PISCA 500UL
 
 // =====================================================
 // FILTROS
 // =====================================================
 
-// EMA para o alerta
 #define ALPHA 0.20
-
-// Filtro adaptativo para o LCD
 #define ALPHA_LCD 0.35
 #define LIMITE_MUDANCA_RAPIDA 2.0
 #define ZONA_ESTABILIDADE 0.25
 
 // =====================================================
-// LCD 20x4 I2C
+// LCD 2004B COM PCF8574
 // =====================================================
 
 LiquidCrystal_I2C lcd(0x20, 20, 4);
 
+char ultimaLinhaLCD[4][21] = {};
+
 // =====================================================
-// RTC DS3232 / DS3231 COMPATIVEL
+// RTC DS3232 / DS3231
 // =====================================================
 
 DS3232RTC rtc;
@@ -53,6 +58,7 @@ volatile unsigned long contadorPulsos = 0;
 // =====================================================
 
 unsigned long ultimaMedicao = 0;
+unsigned long ultimoPisca = 0;
 
 // =====================================================
 // VARIAVEIS DOS FILTROS
@@ -64,9 +70,12 @@ float velocidadeLCD = 0.0;
 bool primeiraLeituraEMA = true;
 bool primeiroValorLCD = true;
 
-// Controle do alerta intermitente
-unsigned long ultimoPisca = 0;
+// =====================================================
+// ESTADO DO ALERTA
+// =====================================================
+
 bool estadoAlerta = false;
+bool alertaIntermitenteAtivo = false;
 
 // =====================================================
 // INTERRUPCAO DO ANEMOMETRO
@@ -137,18 +146,20 @@ float filtrarVelocidadeLCD(float velocidadeAtual) {
 
   float diferenca = velocidadeAtual - velocidadeLCD;
 
-  if (abs(diferenca) >= LIMITE_MUDANCA_RAPIDA) {
+  // Acompanha rapidamente mudancas maiores
+  if (fabs(diferenca) >= LIMITE_MUDANCA_RAPIDA) {
     velocidadeLCD = velocidadeAtual;
     return velocidadeLCD;
   }
 
+  // Suaviza pequenas variacoes
   float novaVelocidade =
     ALPHA_LCD * velocidadeAtual +
     (1.0 - ALPHA_LCD) * velocidadeLCD;
 
-  if (abs(novaVelocidade - velocidadeLCD)
+  // Ignora oscilacoes muito pequenas
+  if (fabs(novaVelocidade - velocidadeLCD)
       >= ZONA_ESTABILIDADE) {
-
     velocidadeLCD = novaVelocidade;
   }
 
@@ -183,61 +194,162 @@ void controlarAlerta(
   float velocidadeFiltrada
 ) {
 
+  // Usa a maior leitura para evitar atrasar o alerta
   float velocidadeReferencia =
-    max(velocidadeAtual, velocidadeFiltrada);
+    (velocidadeAtual > velocidadeFiltrada)
+    ? velocidadeAtual
+    : velocidadeFiltrada;
 
-  if (velocidadeReferencia >= 45.0) {
+  unsigned long agora = millis();
 
-    digitalWrite(PINO_LED, HIGH);
-    digitalWrite(PINO_BUZZER, HIGH);
-    estadoAlerta = true;
-  }
-
-  else if (velocidadeReferencia >= 40.0) {
-
-    if (millis() - ultimoPisca >= 500) {
-
-      ultimoPisca = millis();
-      estadoAlerta = !estadoAlerta;
-
-      digitalWrite(PINO_LED, estadoAlerta);
-      digitalWrite(PINO_BUZZER, estadoAlerta);
-    }
-  }
-
-  else {
+  // ABAIXO DE 40 KM/H: DESLIGADO
+  if (velocidadeReferencia < VELOCIDADE_LIMITE) {
 
     digitalWrite(PINO_LED, LOW);
     digitalWrite(PINO_BUZZER, LOW);
+
     estadoAlerta = false;
+    alertaIntermitenteAtivo = false;
+
+    return;
+  }
+
+  // A PARTIR DE 45 KM/H: LIGADO CONTINUAMENTE
+  if (velocidadeReferencia >= VELOCIDADE_ALERTA_CONTINUO) {
+
+    digitalWrite(PINO_LED, HIGH);
+    digitalWrite(PINO_BUZZER, HIGH);
+
+    estadoAlerta = true;
+    alertaIntermitenteAtivo = false;
+
+    return;
+  }
+
+  // ENTRE 40 E 44,9 KM/H: ALERTA INTERMITENTE
+  if (!alertaIntermitenteAtivo) {
+
+    alertaIntermitenteAtivo = true;
+    estadoAlerta = true;
+    ultimoPisca = agora;
+
+    digitalWrite(PINO_LED, HIGH);
+    digitalWrite(PINO_BUZZER, HIGH);
+
+    return;
+  }
+
+  // Alterna LED e buzzer a cada 500 ms
+  if (agora - ultimoPisca >= INTERVALO_PISCA) {
+
+    ultimoPisca = agora;
+    estadoAlerta = !estadoAlerta;
+
+    digitalWrite(PINO_LED, estadoAlerta ? HIGH : LOW);
+    digitalWrite(PINO_BUZZER, estadoAlerta ? HIGH : LOW);
   }
 }
 
 // =====================================================
-// ATUALIZACAO LCD
+// ATUALIZA UMA LINHA SEM PISCAR O LCD
+// =====================================================
+
+void atualizarLinhaLCD(byte linha, const char* texto) {
+
+  if (linha >= 4) return;
+
+  char buffer[21];
+
+  memset(buffer, ' ', 20);
+  buffer[20] = '\0';
+
+  strncpy(buffer, texto, 20);
+
+  if (strncmp(buffer, ultimaLinhaLCD[linha], 20) != 0) {
+
+    lcd.setCursor(0, linha);
+    lcd.print(buffer);
+
+    memcpy(ultimaLinhaLCD[linha], buffer, 21);
+  }
+}
+
+// =====================================================
+// ATUALIZACAO DO LCD COM STATUS AUTOMATICO
 // =====================================================
 
 void atualizarLCD(float velocidade) {
 
+  char linhaVelocidade[21];
+  char valorVelocidade[10];
+
+  // Linha 1: nome do sistema
+  atualizarLinhaLCD(0, "ANEMOMETRO DIGITAL");
+
+  // Converte o numero decimal para texto
+  dtostrf(velocidade, 5, 1, valorVelocidade);
+
+  // Monta a linha da velocidade
+  snprintf(
+    linhaVelocidade,
+    sizeof(linhaVelocidade),
+    "Vento: %s km/h",
+    valorVelocidade
+  );
+
+  // Linha 2: velocidade medida
+  atualizarLinhaLCD(1, linhaVelocidade);
+
+  // Linha 3: status automatico
+  if (velocidade >= VELOCIDADE_ALERTA_CONTINUO) {
+
+    atualizarLinhaLCD(2, "STATUS: PERIGO");
+
+  } else if (velocidade >= VELOCIDADE_LIMITE) {
+
+    atualizarLinhaLCD(2, "STATUS: ALERTA");
+
+  } else if (velocidade >= 30.0) {
+
+    atualizarLinhaLCD(2, "STATUS: FORTE");
+
+  } else if (velocidade >= 20.0) {
+
+    atualizarLinhaLCD(2, "STATUS: ATENCAO");
+
+  } else {
+
+    atualizarLinhaLCD(2, "STATUS: NORMAL");
+  }
+
+  // Linha 4: limite configurado
+  atualizarLinhaLCD(3, "Limite: 40 km/h");
+}
+
+// =====================================================
+// TELA DE INICIALIZACAO
+// =====================================================
+
+void mostrarTelaInicial() {
+
   lcd.clear();
 
-  lcd.setCursor(0,0);
-  lcd.print("ANEMOMETRO DIGITAL");
+  memset(ultimaLinhaLCD, 0, sizeof(ultimaLinhaLCD));
 
-  lcd.setCursor(0,1);
-  lcd.print("Vel: ");
-  lcd.print(velocidade,1);
-  lcd.print(" km/h");
+  lcd.setCursor(3, 0);
+  lcd.print("ANEMOMETRO");
 
-  lcd.setCursor(0,2);
+  lcd.setCursor(4, 1);
+  lcd.print("DIGITAL");
 
-  if (velocidade >= VELOCIDADE_LIMITE)
-    lcd.print("STATUS: ALERTA");
-  else
-    lcd.print("STATUS: NORMAL");
+  lcd.setCursor(3, 2);
+  lcd.print("INICIANDO...");
 
-  lcd.setCursor(0,3);
-  lcd.print("Limite: 40 km/h");
+  delay(1500);
+
+  lcd.clear();
+
+  memset(ultimaLinhaLCD, 0, sizeof(ultimaLinhaLCD));
 }
 
 // =====================================================
@@ -252,18 +364,7 @@ void setup() {
   lcd.init();
   lcd.backlight();
 
-  lcd.clear();
-
-  lcd.setCursor(3,0);
-  lcd.print("ANEMOMETRO");
-
-  lcd.setCursor(5,1);
-  lcd.print("DIGITAL");
-
-  lcd.setCursor(3,2);
-  lcd.print("INICIANDO...");
-
-  delay(1500);
+  mostrarTelaInicial();
 
   pinMode(PINO_LED, OUTPUT);
   pinMode(PINO_BUZZER, OUTPUT);
@@ -279,6 +380,7 @@ void setup() {
     FALLING
   );
 
+  // Sincronizacao do RTC
   setSyncProvider(getRTC);
 
   if (timeStatus() == timeSet)
@@ -305,6 +407,7 @@ void loop() {
 
     ultimaMedicao = tempoAtual;
 
+    // Copia e zera o contador com seguranca
     noInterrupts();
 
     unsigned long pulsos = contadorPulsos;
@@ -312,22 +415,27 @@ void loop() {
 
     interrupts();
 
-    float velocidadeAtual =
-      converterVelocidade(pulsos);
+    // Calcula a velocidade pela calibracao original
+    float velocidadeAtual = converterVelocidade(pulsos);
 
+    // Filtra a velocidade exibida
     float velocidadeTela =
       filtrarVelocidadeLCD(velocidadeAtual);
 
+    // Filtra a velocidade usada pelo alerta
     float velocidadeAlerta =
       aplicarEMA(velocidadeAtual);
 
+    // Controla LED e buzzer
     controlarAlerta(
       velocidadeAtual,
       velocidadeAlerta
     );
 
+    // Atualiza velocidade e status do LCD
     atualizarLCD(velocidadeTela);
 
+    // Diagnostico no monitor serial
     Serial.print("Pulsos: ");
     Serial.print(pulsos);
 
@@ -337,7 +445,7 @@ void loop() {
     Serial.print(" km/h | LCD: ");
     Serial.print(velocidadeTela, 1);
 
-    Serial.print(" km/h | EMA alerta: ");
+    Serial.print(" km/h | EMA: ");
     Serial.print(velocidadeAlerta, 1);
 
     Serial.println(" km/h");
