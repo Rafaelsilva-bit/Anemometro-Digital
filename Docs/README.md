@@ -1,102 +1,62 @@
 # Documentação Técnica
 
-## Visão Geral
+* **Visão Geral**
+  * Projeto: Anemômetro digital para monitoramento da velocidade do vento em tempo real.
+  * Aplicação: Segurança em operações de trabalho em altura.
+  * Funcionamento: Aquisição de pulsos via sensor Reed Switch, processamento por Arduino Uno, sincronização via RTC, exibição em display LCD 20x4 (I²C com PCF8574) e acionamento de LED (visual) e Buzzer (sonoro).
 
-O projeto consiste em um anemômetro digital desenvolvido para monitoramento da velocidade do vento em aplicações relacionadas à segurança em trabalho em altura. O sistema realiza a aquisição dos sinais do sensor, processa os dados e apresenta os resultados em um display, além de emitir alertas visuais e sonoros quando limites pré-estabelecidos são atingidos.
+* **Arquitetura do Sistema**
+  * Sensor (Reed Switch)
+  * Arduino Uno
+  * Dispositivos de saída:
+    * Display LCD 20x4 (I²C)
+    * LED (Alerta Visual)
+    * Buzzer (Alerta Sonoro)
+    * RTC DS3231/DS3232 (Tempo Real)
 
----
+* **Componentes Utilizados**
+  * **Arduino Uno:** Controle principal do sistema.
+  * **Reed Switch:** Simulação da geração de pulsos do anemômetro.
+  * **Display LCD 20x4:** Exibição das informações operacionais.
+  * **PCF8574:** Interface I²C do LCD.
+  * **Buzzer:** Alerta sonoro.
+  * **LED:** Alerta visual.
+  * **RTC DS3231/DS3232:** Sincronização temporal.
+  * **Potenciômetro 10 kΩ:** Ajuste de contraste do LCD.
+  * **Resistores:** Proteção e condicionamento do circuito.
 
-# Arquitetura do Sistema
+* **Lógica de Funcionamento**
+  * Geração de pulsos proporcionais à velocidade do vento pelo sensor Reed Switch.
+  * Contagem de pulsos e aplicação de filtros digitais para suavização das leituras pelo Arduino.
+  * Conversão dos pulsos em km/h utilizando fator de calibração.
+  * Exibição do valor e do status atualizado no display LCD 20x4.
+  * Verificação dos limites de segurança:
+    * Menor que 40 km/h: Operação normal.
+    * Entre 40 e 45 km/h: Alerta intermitente.
+    * Maior ou igual a 45 km/h: Perigo / Alerta contínuo.
 
-```text
-Sensor de Vento
-       │
-       ▼
-Arduino Uno
-       │
- ┌─────┼─────┐
- ▼     ▼     ▼
-OLED  LED  Buzzer
-```
+* **Critérios de Alarme (Níveis de Criticidade)**
+  * **Menor que 40 km/h:** Status `NORMAL` (operação segura, sem alertas).
+  * **Entre 40 e 45 km/h:** Status `ALERTA` (alerta intermitente com LED e Buzzer ativos).
+  * **Maior ou igual a 45 km/h:** Status `PERIGO` (alerta contínuo ativo até a normalização).
 
----
+* **Testes Realizados**
+  * **Teste de Leitura:** Validação da aquisição de pulsos via Reed Switch e suavização por filtros digitais.
+  * **Teste de Exibição:** Verificação da comunicação I²C e atualização em tempo real no display LCD 20x4.
+  * **Teste de Limites:** Confirmação do acionamento correto do LED e do Buzzer nas faixas de 40 km/h (`ALERTA`) e 50 km/h (`PERIGO`).
 
-# Componentes Utilizados
+* **Limitações**
+  * Dependência da calibração mecânica e elétrica do sensor de pulsos.
+  * Influência de ruídos no ambiente simulado/real.
+  * Validação inicial restrita ao ambiente de simulação (Proteus Design Suite).
 
-| Componente | Função |
-|------------|---------|
-| Arduino Uno | Controle principal |
-| Sensor de velocidade do vento | Aquisição de dados |
-| Display OLED | Exibição das informações |
-| LED | Alerta visual |
-| Buzzer | Alerta sonoro |
-| Resistores | Proteção e condicionamento |
+* **Melhorias Futuras**
+  * Registro histórico das medições utilizando o RTC.
+  * Armazenamento de dados em cartão SD.
+  * Comunicação Wi-Fi e integração com plataformas IoT.
+  * Desenvolvimento de aplicativo móvel para monitoramento remoto.
+  * Utilização de sensores comerciais de maior precisão.
 
----
-
-# Lógica de Funcionamento
-
-1. O sensor gera pulsos de acordo com a velocidade do vento.
-2. O Arduino realiza a contagem desses pulsos.
-3. Os pulsos são convertidos para velocidade.
-4. O valor é exibido no display.
-5. Caso o limite seja ultrapassado:
-   - LED é acionado;
-   - Buzzer é acionado;
-   - Alerta é exibido na tela.
-
----
-
-# Critérios de Alarme
-
-| Faixa | Situação |
-|---------|-----------|
-| Normal | Operação segura |
-| Atenção | Velocidade elevada |
-| Crítico | Acionamento do alarme |
-
----
-
-# Testes Realizados
-
-## Teste 1
-
-Objetivo: verificar aquisição dos pulsos.
-
-Resultado: leitura realizada com sucesso.
-
-## Teste 2
-
-Objetivo: validar exibição no display.
-
-Resultado: valores apresentados corretamente.
-
-## Teste 3
-
-Objetivo: validar acionamento dos alarmes.
-
-Resultado: LED e buzzer acionados conforme esperado.
-
----
-
-# Limitações
-
-- Dependência da calibração do sensor.
-- Influência de ruídos elétricos.
-- Necessidade de validações em ambiente real.
-
----
-
-# Melhorias Futuras
-
-- Registro de dados em cartão SD.
-- Comunicação Wi-Fi.
-- Aplicativo para monitoramento remoto.
-- Alimentação por bateria.
-- Dashboard web.
-
----
-
-# Conclusão
-
-O sistema desenvolvido demonstrou a viabilidade da medição da velocidade do vento utilizando uma plataforma microcontrolada de baixo custo, permitindo monitoramento em tempo real e emissão de alertas para apoio à segurança operacional.
+* **Conclusão**
+  * Validação da viabilidade de um sistema microcontrolado de baixo custo para monitoramento do vento.
+  * Êxito na clareza operacional via LCD 20x4 e resposta imediata dos alarmes para prevenção de acidentes em altura.
