@@ -100,7 +100,7 @@ Docs/Fluxograma.jpg
 O esquema elétrico utilizado para o desenvolvimento e validação do projeto encontra-se na pasta:
 
 ```text
-imagens/
+imagens/Prototipo Proteus.jpeg
 ```
 
 A montagem foi simulada e testada utilizando o Proteus Design Suite.
