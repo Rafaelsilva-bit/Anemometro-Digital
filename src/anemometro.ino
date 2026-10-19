@@ -315,7 +315,7 @@ void atualizarLCD(float velocidade) {
 
   } else if (velocidade >= 30.0) {
 
-    atualizarLinhaLCD(2, "STATUS: VENTO FORTE");
+    atualizarLinhaLCD(2, "STATUS: FORTE");
 
   } else if (velocidade >= 20.0) {
 
