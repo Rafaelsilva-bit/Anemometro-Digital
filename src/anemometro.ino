@@ -1,4 +1,3 @@
-
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 #include <DS3232RTC.h>
@@ -26,7 +25,6 @@
 // =====================================================
 
 #define ALPHA 0.20
-
 #define ALPHA_LCD 0.35
 #define LIMITE_MUDANCA_RAPIDA 2.0
 #define ZONA_ESTABILIDADE 0.25
@@ -89,7 +87,6 @@ void contarPulso() {
 
 // =====================================================
 // CONVERSAO DOS PULSOS PARA KM/H
-// CALIBRACAO ORIGINAL PRESERVADA
 // =====================================================
 
 float converterVelocidade(unsigned long pulsos) {
@@ -170,7 +167,7 @@ float filtrarVelocidadeLCD(float velocidadeAtual) {
 }
 
 // =====================================================
-// FILTRO EMA PARA O ALERTA
+// FILTRO EMA PARA ALERTA
 // =====================================================
 
 float aplicarEMA(float leituraAtual) {
@@ -189,7 +186,7 @@ float aplicarEMA(float leituraAtual) {
 }
 
 // =====================================================
-// CONTROLE DO LED E BUZZER
+// CONTROLE LED E BUZZER
 // =====================================================
 
 void controlarAlerta(
@@ -290,7 +287,6 @@ void atualizarLCD(float velocidade) {
   atualizarLinhaLCD(0, "ANEMOMETRO DIGITAL");
 
   // Converte o numero decimal para texto
-  // Evita o problema de aparecer "? km/h"
   dtostrf(velocidade, 5, 1, valorVelocidade);
 
   // Monta a linha da velocidade
@@ -387,11 +383,10 @@ void setup() {
   // Sincronizacao do RTC
   setSyncProvider(getRTC);
 
-  if (timeStatus() == timeSet) {
+  if (timeStatus() == timeSet)
     Serial.println("RTC sincronizado.");
-  } else {
+  else
     Serial.println("RTC nao sincronizado; usando millis().");
-  }
 
   ultimaMedicao = millis();
 
@@ -414,8 +409,10 @@ void loop() {
 
     // Copia e zera o contador com seguranca
     noInterrupts();
+
     unsigned long pulsos = contadorPulsos;
     contadorPulsos = 0;
+
     interrupts();
 
     // Calcula a velocidade pela calibracao original
