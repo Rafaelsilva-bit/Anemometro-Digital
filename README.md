@@ -99,9 +99,7 @@ Após o processamento:
 
 O fluxograma completo encontra-se na pasta:
 
-```text
-Docs/Fluxograma.jpg
-```
+![Fluxograma do Sistema](Docs/Fluxograma.jpg)
 
 ---
 
