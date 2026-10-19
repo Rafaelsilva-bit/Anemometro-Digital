@@ -1,0 +1,15 @@
+# Arduino
+build/
+*.hex
+*.elf
+
+# VS Code
+.vscode/
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Arquivos temporários
+*.tmp
+*.log
