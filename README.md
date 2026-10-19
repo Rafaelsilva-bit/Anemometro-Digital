@@ -89,9 +89,9 @@ Anemometro-Digital/
 
 O fluxograma completo do funcionamento do sistema encontra-se na pasta:
 
-```text
+
 Docs/Fluxograma.jpg
-```
+
 
 ---
 
@@ -100,9 +100,7 @@ Docs/Fluxograma.jpg
 O esquema elétrico utilizado para o desenvolvimento e validação do projeto encontra-se na pasta:
 
 
-## Fluxograma
 
-Docs/Fluxograma.jpg
 
 
 A montagem foi simulada e testada utilizando o Proteus Design Suite.
